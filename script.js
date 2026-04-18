@@ -26,14 +26,10 @@ let currentRotateDir = 'F';
 let currentClawCmd = 'F';
 let currentSpeedPercent = 50;
 
-// 摇杆拖动标志
-let moveDragged = false, rotateDragged = false, clawDragged = false;
-
-// 动画帧ID
-let moveAnimFrame = null, rotateAnimFrame = null, clawAnimFrame = null;
+// 移动摇杆专用标志和动画
+let moveDragged = false;
+let moveAnimFrame = null;
 let moveTargetX = 0, moveTargetY = 0, moveCurrentX = 0, moveCurrentY = 0;
-let rotateTargetX = 0, rotateCurrentX = 0;
-let clawTargetX = 0, clawCurrentX = 0;
 
 // UI 元素
 const statusSpan = document.querySelector('.status-bar span:first-child');
@@ -46,9 +42,7 @@ const logEntriesDiv = document.getElementById('logEntries');
 const moveCanvas = document.getElementById('moveCanvas');
 const ctxMove = moveCanvas.getContext('2d');
 const rotateCanvas = document.getElementById('rotateCanvas');
-const ctxRotate = rotateCanvas.getContext('2d');
 const clawCanvas = document.getElementById('clawCanvas');
-const ctxClaw = clawCanvas.getContext('2d');
 
 // ==================== 辅助函数 ====================
 function addLog(msg) {
@@ -127,7 +121,7 @@ function adjustSpeedBy(delta) {
 	if (newVal !== currentSpeedPercent) setSpeedPercentUI(newVal);
 }
 
-// ==================== 移动摇杆（四向吸附） ====================
+// ==================== 移动摇杆（四向吸附，区域限制） ====================
 const MOVE_SIZE = moveCanvas.width;
 const MOVE_MAX_RADIUS = MOVE_SIZE * 0.4;
 const MOVE_CX = MOVE_SIZE / 2, MOVE_CY = MOVE_SIZE / 2;
@@ -196,20 +190,44 @@ function setMoveTarget(nx, ny) {
 	updateMoveDirection(dir);
 }
 
+// 检查点是否在 canvas 内
+function isPointInCanvas(canvas, clientX, clientY) {
+	const rect = canvas.getBoundingClientRect();
+	return clientX >= rect.left && clientX <= rect.right &&
+		clientY >= rect.top && clientY <= rect.bottom;
+}
+
+let moveActive = false;
 function handleMoveStart(e) {
 	e.preventDefault();
+	moveActive = true;
 	moveDragged = false;
 	handleMoveMove(e);
 }
 function handleMoveMove(e) {
-	if (!e.buttons && !e.touches) return;
+	if (!moveActive) return;
 	e.preventDefault();
+	let clientX, clientY;
+	if (e.touches) {
+		clientX = e.touches[0].clientX;
+		clientY = e.touches[0].clientY;
+	} else {
+		clientX = e.clientX;
+		clientY = e.clientY;
+	}
+	// 如果鼠标/手指移出了 canvas，则结束拖动
+	if (!isPointInCanvas(moveCanvas, clientX, clientY)) {
+		if (moveDragged) {
+			setMoveTarget(0, 0);
+		}
+		moveActive = false;
+		moveDragged = false;
+		return;
+	}
 	moveDragged = true;
 	const rect = moveCanvas.getBoundingClientRect();
 	const scaleX = moveCanvas.width / rect.width;
 	const scaleY = moveCanvas.height / rect.height;
-	let clientX = e.clientX ?? (e.touches ? e.touches[0].clientX : 0);
-	let clientY = e.clientY ?? (e.touches ? e.touches[0].clientY : 0);
 	let cx = (clientX - rect.left) * scaleX;
 	let cy = (clientY - rect.top) * scaleY;
 	cx = Math.min(Math.max(cx, 0), moveCanvas.width);
@@ -220,12 +238,16 @@ function handleMoveMove(e) {
 	if (len > 1) { dx /= len; dy /= len; }
 	setMoveTarget(dx, dy);
 }
-function handleMoveEnd() {
-	if (moveDragged) setMoveTarget(0, 0);
+function handleMoveEnd(e) {
+	if (!moveActive) return;
+	if (moveDragged) {
+		setMoveTarget(0, 0);
+	}
+	moveActive = false;
 	moveDragged = false;
 }
 
-// ==================== 水平摇杆通用类 ====================
+// ==================== 水平摇杆通用类（区域限制） ====================
 class HorizontalJoystick {
 	constructor(canvas, onUpdate, deadzone = 0.2) {
 		this.canvas = canvas;
@@ -250,6 +272,7 @@ class HorizontalJoystick {
 		this.start = this.start.bind(this);
 		this.move = this.move.bind(this);
 		this.end = this.end.bind(this);
+		this.isPointInside = this.isPointInside.bind(this);
 
 		this.canvas.addEventListener('mousedown', this.start);
 		window.addEventListener('mousemove', this.move);
@@ -259,6 +282,12 @@ class HorizontalJoystick {
 		window.addEventListener('touchend', this.end);
 
 		this.draw();
+	}
+
+	isPointInside(clientX, clientY) {
+		const rect = this.canvas.getBoundingClientRect();
+		return clientX >= rect.left && clientX <= rect.right &&
+			clientY >= rect.top && clientY <= rect.bottom;
 	}
 
 	draw() {
@@ -303,22 +332,31 @@ class HorizontalJoystick {
 		this.dragged = false;
 		this.move(e);
 	}
+
 	move(e) {
 		if (!this.active) return;
 		e.preventDefault();
+		let clientX = e.clientX ?? (e.touches ? e.touches[0].clientX : 0);
+		let clientY = e.clientY ?? (e.touches ? e.touches[0].clientY : 0);
+		if (!this.isPointInside(clientX, clientY)) {
+			if (this.dragged) this.setTarget(0);
+			this.active = false;
+			this.dragged = false;
+			return;
+		}
 		this.dragged = true;
 		const rect = this.canvas.getBoundingClientRect();
-		let clientX = e.clientX ?? (e.touches ? e.touches[0].clientX : 0);
 		let x = (clientX - rect.left) / rect.width * this.width;
 		x = Math.min(Math.max(x, 0), this.width);
 		let dx = (x - this.centerX) / this.maxRadius;
 		dx = Math.min(1, Math.max(-1, dx));
 		this.setTarget(dx);
 	}
+
 	end(e) {
 		if (!this.active) return;
-		this.active = false;
 		if (this.dragged) this.setTarget(0);
+		this.active = false;
 		this.dragged = false;
 	}
 }
@@ -498,14 +536,13 @@ speedSlider.addEventListener('input', (e) => {
 });
 
 // ==================== 初始化摇杆和事件 ====================
-// 旋转摇杆回调
+// 创建水平摇杆实例
 const rotateCallback = (val) => {
 	let dir = 'F';
 	if (val === -1) dir = 'J';
 	else if (val === 1) dir = 'L';
 	updateRotateDirection(dir);
 };
-// 机械爪摇杆回调
 const clawCallback = (val) => {
 	let cmd = 'F';
 	if (val === -1) cmd = 'U';
@@ -515,18 +552,12 @@ const clawCallback = (val) => {
 const rotateJoystick = new HorizontalJoystick(rotateCanvas, rotateCallback);
 const clawJoystick = new HorizontalJoystick(clawCanvas, clawCallback);
 
-// 移动摇杆事件
-moveCanvas.addEventListener('mousedown', (e) => { moveDragged = false; handleMoveMove(e); });
-window.addEventListener('mousemove', (e) => {
-	if (e.buttons !== 1 && !moveDragged) return;
-	handleMoveMove(e);
-});
+// 移动摇杆事件绑定（含区域限制）
+moveCanvas.addEventListener('mousedown', handleMoveStart);
+window.addEventListener('mousemove', handleMoveMove);
 window.addEventListener('mouseup', handleMoveEnd);
-moveCanvas.addEventListener('touchstart', (e) => { moveDragged = false; handleMoveMove(e); });
-window.addEventListener('touchmove', (e) => {
-	if (!moveDragged) return;
-	handleMoveMove(e);
-});
+moveCanvas.addEventListener('touchstart', handleMoveStart);
+window.addEventListener('touchmove', handleMoveMove);
 window.addEventListener('touchend', handleMoveEnd);
 
 drawMoveJoystick();
