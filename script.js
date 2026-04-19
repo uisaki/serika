@@ -109,7 +109,10 @@ function updateClawCommand(cmd) {
 }
 
 function setSpeedPercentUI(value) {
+	// 强制取整到 10 的倍数
+	value = Math.round(value / 10) * 10;
 	value = Math.min(100, Math.max(0, value));
+	if (currentSpeedPercent === value) return;
 	currentSpeedPercent = value;
 	speedSlider.value = value;
 	speedPercentSpan.innerText = value + '%';
@@ -117,8 +120,13 @@ function setSpeedPercentUI(value) {
 
 function adjustSpeedBy(delta) {
 	let newVal = currentSpeedPercent + delta;
+	newVal = Math.round(newVal / 10) * 10;
 	newVal = Math.min(100, Math.max(0, newVal));
-	if (newVal !== currentSpeedPercent) setSpeedPercentUI(newVal);
+	if (newVal !== currentSpeedPercent) {
+		setSpeedPercentUI(newVal);
+		return true;
+	}
+	return false;
 }
 
 // ==================== 移动摇杆（四向吸附，区域限制） ====================
@@ -469,8 +477,12 @@ function handleKeyDown(e) {
 				updateClawCommand('U');
 			}
 		}
-		else if (cmd === 'speedUp') { adjustSpeedBy(10); sendRaw('I'); }
-		else if (cmd === 'speedDown') { adjustSpeedBy(-10); sendRaw('K'); }
+		else if (cmd === 'speedUp') {
+			if (adjustSpeedBy(10)) sendRaw('I');
+		}
+		else if (cmd === 'speedDown') {
+			if (adjustSpeedBy(-10)) sendRaw('K');
+		}
 	}
 }
 
@@ -530,9 +542,22 @@ document.getElementById('connectBtn').addEventListener('click', async () => {
 
 // ==================== 速度滑块 ====================
 speedSlider.addEventListener('input', (e) => {
-	let val = parseInt(e.target.value);
-	speedPercentSpan.innerText = val + '%';
-	currentSpeedPercent = val;
+	let raw = parseInt(e.target.value);
+	let rounded = Math.round(raw / 10) * 10;
+	if (rounded !== currentSpeedPercent) {
+		setSpeedPercentUI(rounded);
+	} else {
+		// 如果取整后不变，但滑块显示值可能不是10的倍数，强制修正滑块显示
+		speedSlider.value = rounded;
+	}
+});
+
+// 可选 change 事件确保最终值正确
+speedSlider.addEventListener('change', (e) => {
+	let rounded = Math.round(parseInt(e.target.value) / 10) * 10;
+	if (rounded !== currentSpeedPercent) {
+		setSpeedPercentUI(rounded);
+	}
 });
 
 // ==================== 初始化摇杆和事件 ====================
