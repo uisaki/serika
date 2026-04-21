@@ -244,3 +244,13 @@ h1 {
 		height: 45px;
 	}
 }
+
+/* 禁用控件样式 */
+.disabled-controls {
+	opacity: 0.6;
+	pointer-events: none;
+}
+.disabled {
+	opacity: 0.6;
+	pointer-events: none;
+}

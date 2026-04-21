@@ -25,6 +25,7 @@ let currentMoveDir = 'F';
 let currentRotateDir = 'F';
 let currentClawCmd = 'F';
 let currentSpeedPercent = 50;
+let isConnected = false;   // 蓝牙连接标志
 
 // 移动摇杆专用标志和动画
 let moveDragged = false;
@@ -44,6 +45,10 @@ const ctxMove = moveCanvas.getContext('2d');
 const rotateCanvas = document.getElementById('rotateCanvas');
 const clawCanvas = document.getElementById('clawCanvas');
 
+// 控件容器（用于统一禁用样式）
+const leftPanel = document.querySelector('.left-panel');
+const rightPanel = document.querySelector('.right-panel');
+
 // ==================== 辅助函数 ====================
 function addLog(msg) {
 	const entry = document.createElement('div');
@@ -57,6 +62,30 @@ function addLog(msg) {
 function updateStatus(msg) {
 	statusSpan.innerHTML = `⚡ ${msg}`;
 	addLog(msg);
+}
+
+// 更新 UI 控件的启用/禁用状态
+function updateControlsEnabled() {
+	if (isConnected) {
+		leftPanel.classList.remove('disabled-controls');
+		rightPanel.classList.remove('disabled-controls');
+		speedSlider.disabled = false;
+		// 移除摇杆 canvas 的 pointer-events 禁用（通过 CSS 类控制）
+		moveCanvas.classList.remove('disabled');
+		rotateCanvas.classList.remove('disabled');
+		clawCanvas.classList.remove('disabled');
+	} else {
+		leftPanel.classList.add('disabled-controls');
+		rightPanel.classList.add('disabled-controls');
+		speedSlider.disabled = true;
+		moveCanvas.classList.add('disabled');
+		rotateCanvas.classList.add('disabled');
+		clawCanvas.classList.add('disabled');
+		// 重置摇杆位置
+		if (typeof setMoveTarget === 'function') setMoveTarget(0, 0);
+		if (rotateJoystick) rotateJoystick.setTarget(0);
+		if (clawJoystick) clawJoystick.setTarget(0);
+	}
 }
 
 // 蓝牙发送队列
@@ -77,7 +106,7 @@ async function processSendQueue() {
 }
 
 function sendRaw(cmd) {
-	if (!characteristic) return false;
+	if (!characteristic || !isConnected) return false;
 	sendQueue.push(cmd);
 	processSendQueue();
 	return true;
@@ -109,7 +138,6 @@ function updateClawCommand(cmd) {
 }
 
 function setSpeedPercentUI(value) {
-	// 强制取整到 10 的倍数
 	value = Math.round(value / 10) * 10;
 	value = Math.min(100, Math.max(0, value));
 	if (currentSpeedPercent === value) return;
@@ -129,7 +157,7 @@ function adjustSpeedBy(delta) {
 	return false;
 }
 
-// ==================== 移动摇杆（四向吸附，区域限制） ====================
+// ==================== 移动摇杆 ====================
 const MOVE_SIZE = moveCanvas.width;
 const MOVE_MAX_RADIUS = MOVE_SIZE * 0.4;
 const MOVE_CX = MOVE_SIZE / 2, MOVE_CY = MOVE_SIZE / 2;
@@ -198,7 +226,6 @@ function setMoveTarget(nx, ny) {
 	updateMoveDirection(dir);
 }
 
-// 检查点是否在 canvas 内
 function isPointInCanvas(canvas, clientX, clientY) {
 	const rect = canvas.getBoundingClientRect();
 	return clientX >= rect.left && clientX <= rect.right &&
@@ -207,13 +234,14 @@ function isPointInCanvas(canvas, clientX, clientY) {
 
 let moveActive = false;
 function handleMoveStart(e) {
+	if (!isConnected) return;   // 未连接时忽略
 	e.preventDefault();
 	moveActive = true;
 	moveDragged = false;
 	handleMoveMove(e);
 }
 function handleMoveMove(e) {
-	if (!moveActive) return;
+	if (!moveActive || !isConnected) return;
 	e.preventDefault();
 	let clientX, clientY;
 	if (e.touches) {
@@ -223,11 +251,8 @@ function handleMoveMove(e) {
 		clientX = e.clientX;
 		clientY = e.clientY;
 	}
-	// 如果鼠标/手指移出了 canvas，则结束拖动
 	if (!isPointInCanvas(moveCanvas, clientX, clientY)) {
-		if (moveDragged) {
-			setMoveTarget(0, 0);
-		}
+		if (moveDragged) setMoveTarget(0, 0);
 		moveActive = false;
 		moveDragged = false;
 		return;
@@ -248,9 +273,7 @@ function handleMoveMove(e) {
 }
 function handleMoveEnd(e) {
 	if (!moveActive) return;
-	if (moveDragged) {
-		setMoveTarget(0, 0);
-	}
+	if (moveDragged) setMoveTarget(0, 0);
 	moveActive = false;
 	moveDragged = false;
 }
@@ -335,6 +358,7 @@ class HorizontalJoystick {
 	}
 
 	start(e) {
+		if (!isConnected) return;   // 未连接时忽略
 		e.preventDefault();
 		this.active = true;
 		this.dragged = false;
@@ -342,7 +366,7 @@ class HorizontalJoystick {
 	}
 
 	move(e) {
-		if (!this.active) return;
+		if (!this.active || !isConnected) return;
 		e.preventDefault();
 		let clientX = e.clientX ?? (e.touches ? e.touches[0].clientX : 0);
 		let clientY = e.clientY ?? (e.touches ? e.touches[0].clientY : 0);
@@ -448,6 +472,7 @@ function resetShortcuts() {
 // ==================== 键盘事件 ====================
 let activeClawShortcut = false;
 function handleKeyDown(e) {
+	if (!isConnected) return;   // 未连接时忽略快捷键
 	let key = e.key;
 	if (key === ' ') key = 'Space';
 	if (key === 'Shift' || key === 'Control' || key === 'Alt' || key === 'Meta') return;
@@ -487,6 +512,7 @@ function handleKeyDown(e) {
 }
 
 function handleKeyUp(e) {
+	if (!isConnected) return;
 	let key = e.key;
 	if (key === ' ') key = 'Space';
 	let lowerKey = key.toLowerCase();
@@ -505,55 +531,73 @@ function handleKeyUp(e) {
 	}
 }
 
-// ==================== 蓝牙连接 ====================
+// ==================== 蓝牙连接（使用正确的UUID） ====================
 document.getElementById('connectBtn').addEventListener('click', async () => {
-	if (characteristic) {
-		if (device && device.gatt.connected) await device.gatt.disconnect();
-		characteristic = null; device = null;
-		updateStatus('已断开');
-		bluetoothNameSpan.style.display = 'none';
-		bluetoothNameSpan.innerText = '';
-		document.getElementById('connectBtn').textContent = '🔌 连接蓝牙设备';
-		return;
-	}
-	try {
-		updateStatus('请求设备...');
-		device = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: ['0000ffe0-0000-1000-8000-00805f9b34fb'] });
-		const deviceName = device.name || '未知设备';
-		updateStatus(`已连接 ${deviceName}`);
-		bluetoothNameSpan.innerText = `📡 ${deviceName}`;
-		bluetoothNameSpan.style.display = 'inline-block';
-		const server = await device.gatt.connect();
-		let service;
-		try { service = await server.getPrimaryService('0000ffe0-0000-1000-8000-00805f9b34fb'); }
-		catch (e) { service = await server.getPrimaryService('ffe0'); }
-		try { characteristic = await service.getCharacteristic('0000ffe1-0000-1000-8000-00805f9b34fb'); }
-		catch (e) { characteristic = await service.getCharacteristic('ffe1'); }
-		updateStatus('连接成功');
-		document.getElementById('connectBtn').textContent = '🔌 断开连接';
-		device.addEventListener('gattserverdisconnected', () => {
-			updateStatus('设备断开');
-			characteristic = null; device = null;
-			bluetoothNameSpan.style.display = 'none';
-			document.getElementById('connectBtn').textContent = '🔌 连接蓝牙设备';
-		});
-	} catch (err) { updateStatus(`连接失败: ${err.message}`); }
+    if (characteristic) {
+        if (device && device.gatt.connected) await device.gatt.disconnect();
+        characteristic = null; device = null;
+        isConnected = false;
+        updateControlsEnabled();
+        updateStatus('已断开');
+        bluetoothNameSpan.style.display = 'none';
+        bluetoothNameSpan.innerText = '';
+        document.getElementById('connectBtn').textContent = '🔌 连接蓝牙设备';
+        return;
+    }
+    try {
+        updateStatus('请求设备...');
+
+        // 1. 定义 HC-08 模块的标准服务 UUID 和特征值 UUID
+        const SERVICE_UUID = '0000ffe0-0000-1000-8000-00805f9b34fb';
+        const CHARACTERISTIC_UUID = '0000ffe1-0000-1000-8000-00805f9b34fb';
+
+        // 2. 请求设备时，在 optionalServices 中声明要使用的服务
+        device = await navigator.bluetooth.requestDevice({
+            acceptAllDevices: true,
+            optionalServices: [SERVICE_UUID]
+        });
+
+        const deviceName = device.name || '未知设备';
+        updateStatus(`已连接 ${deviceName}`);
+        bluetoothNameSpan.innerText = `📡 ${deviceName}`;
+        bluetoothNameSpan.style.display = 'inline-block';
+        
+        const server = await device.gatt.connect();
+        
+        // 3. 使用完整的 128 位 UUID 来获取服务
+        const service = await server.getPrimaryService(SERVICE_UUID);
+        characteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
+        
+        isConnected = true;
+        updateControlsEnabled();
+        updateStatus('连接成功');
+        document.getElementById('connectBtn').textContent = '🔌 断开连接';
+        device.addEventListener('gattserverdisconnected', () => {
+            updateStatus('设备断开');
+            characteristic = null; device = null;
+            isConnected = false;
+            updateControlsEnabled();
+            bluetoothNameSpan.style.display = 'none';
+            document.getElementById('connectBtn').textContent = '🔌 连接蓝牙设备';
+        });
+    } catch (err) {
+        updateStatus(`连接失败: ${err.message}`);
+    }
 });
 
 // ==================== 速度滑块 ====================
 speedSlider.addEventListener('input', (e) => {
+	if (!isConnected) return;
 	let raw = parseInt(e.target.value);
 	let rounded = Math.round(raw / 10) * 10;
 	if (rounded !== currentSpeedPercent) {
 		setSpeedPercentUI(rounded);
 	} else {
-		// 如果取整后不变，但滑块显示值可能不是10的倍数，强制修正滑块显示
 		speedSlider.value = rounded;
 	}
 });
-
-// 可选 change 事件确保最终值正确
 speedSlider.addEventListener('change', (e) => {
+	if (!isConnected) return;
 	let rounded = Math.round(parseInt(e.target.value) / 10) * 10;
 	if (rounded !== currentSpeedPercent) {
 		setSpeedPercentUI(rounded);
@@ -561,14 +605,15 @@ speedSlider.addEventListener('change', (e) => {
 });
 
 // ==================== 初始化摇杆和事件 ====================
-// 创建水平摇杆实例
 const rotateCallback = (val) => {
+	if (!isConnected) return;
 	let dir = 'F';
 	if (val === -1) dir = 'J';
 	else if (val === 1) dir = 'L';
 	updateRotateDirection(dir);
 };
 const clawCallback = (val) => {
+	if (!isConnected) return;
 	let cmd = 'F';
 	if (val === -1) cmd = 'U';
 	else if (val === 1) cmd = 'O';
@@ -601,3 +646,7 @@ renderShortcutTable();
 document.getElementById('resetShortcutsBtn').addEventListener('click', resetShortcuts);
 window.addEventListener('keydown', handleKeyDown);
 window.addEventListener('keyup', handleKeyUp);
+
+// 初始状态：未连接，禁用控件
+isConnected = false;
+updateControlsEnabled();
