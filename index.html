@@ -1,69 +1,93 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
-
 <head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-	<title>桌面宠物遥控器</title>
-	<link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>桌面宠物遥控器</title>
+    <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
-	<div class="app">
-		<h1>🤖 桌面宠物遥控器</h1>
-		<div class="sub">WASD移动 旋转JL 机械爪UO</div>
-		<button id="connectBtn" class="connect-btn">🔌 连接蓝牙设备</button>
-		<div class="status-bar">
-			<span>⚡ 未连接</span>
-			<span id="bluetoothName" class="bluetooth-name" style="display: none;"></span>
-		</div>
+    <div class="app">
+        <h1>🤖 桌面宠物遥控器</h1>
+        <div class="sub">WASD移动 旋转JL 机械爪UO</div>
+        <button id="connectBtn" class="connect-btn">🔌 连接蓝牙设备</button>
+        <div class="status-bar">
+            <span>⚡ 未连接</span>
+            <span id="bluetoothName" class="bluetooth-name" style="display: none;"></span>
+        </div>
 
-		<div class="two-columns">
-			<!-- 左侧控制区 -->
-			<div class="left-panel">
-				<div class="card-title">🎮 移动摇杆</div>
-				<canvas id="moveCanvas" class="move-canvas" width="220" height="220"></canvas>
-				<div class="speed-control">
-					<span>⚡ 当前速度</span>
-					<input type="range" id="speedSlider" min="0" max="100" value="50" step="1">
-					<span id="speedPercent">50%</span>
-				</div>
-				<div style="margin-top: 1rem;">
-					<div class="card-title">🦀 机械爪</div>
-					<canvas id="clawCanvas" class="claw-canvas" width="240" height="50"></canvas>
-					<div class="hint">← 闭合 (U) &nbsp;&nbsp; 张开 (O) →</div>
-				</div>
-				<div style="margin-top: 1rem;">
-					<div class="card-title">🔄 旋转摇杆</div>
-					<canvas id="rotateCanvas" class="rotate-canvas" width="240" height="50"></canvas>
-					<div class="hint">← 逆时针 (J) &nbsp;&nbsp; 顺时针 (L) →</div>
-				</div>
-			</div>
+        <div class="two-columns">
+            <!-- 左侧控制区 -->
+            <div class="left-panel">
+                <div class="card-title">🎮 移动摇杆</div>
+                <canvas id="moveCanvas" class="move-canvas" width="220" height="220"></canvas>
+                <div class="speed-control">
+                    <span>⚡ 当前速度</span>
+                    <input type="range" id="speedSlider" min="0" max="100" value="50" step="1">
+                    <span id="speedPercent">50%</span>
+                </div>
+                <div style="margin-top: 1rem;">
+                    <div class="card-title">🦀 机械爪</div>
+                    <canvas id="clawCanvas" class="claw-canvas" width="240" height="50"></canvas>
+                    <div class="hint">← 闭合 (U) &nbsp;&nbsp; 张开 (O) →</div>
+                </div>
+                <div style="margin-top: 1rem;">
+                    <div class="card-title">🔄 旋转摇杆</div>
+                    <canvas id="rotateCanvas" class="rotate-canvas" width="240" height="50"></canvas>
+                    <div class="hint">← 逆时针 (J) &nbsp;&nbsp; 顺时针 (L) →</div>
+                </div>
+                <!-- 自定义命令按钮区 -->
+                <div style="margin-top: 1rem;">
+                    <div class="card-title">🎮 游戏控制按钮</div>
+                    <div class="custom-buttons">
+                        <div class="custom-btn-item">
+                            <button class="custom-cmd-btn" id="customBtn1">发送</button>
+                            <input type="text" id="customCmd1" class="custom-cmd-input" maxlength="1" value="N" placeholder="字母">
+                            <span class="custom-hint">(落子)</span>
+                        </div>
+                        <div class="custom-btn-item">
+                            <button class="custom-cmd-btn" id="customBtn2">发送</button>
+                            <input type="text" id="customCmd2" class="custom-cmd-input" maxlength="1" value="M" placeholder="字母">
+                            <span class="custom-hint">(重置)</span>
+                        </div>
+                        <div class="custom-btn-item">
+                            <button class="custom-cmd-btn" id="customBtn3">发送</button>
+                            <input type="text" id="customCmd3" class="custom-cmd-input" maxlength="1" value="Q" placeholder="字母">
+                            <span class="custom-hint">(切换游戏)</span>
+                        </div>
+                    </div>
+                    <div class="hint">点击按钮或按设定的字母键发送命令（游戏模式专用）</div>
+                </div>
+            </div>
 
-			<!-- 右侧信息区 -->
-			<div class="right-panel">
-				<div class="log-card">
-					<div class="log-title">📋 指令日志</div>
-					<div class="log-entries" id="logEntries"></div>
-				</div>
-				<div>
-					<div class="shortcut-header">
-						<span class="card-title">⌨️ 自定义快捷键</span>
-						<button id="resetShortcutsBtn" class="reset-btn">重置默认</button>
-					</div>
-					<table class="shortcut-table" id="shortcutTable">
-						<thead>
-							<tr>
-								<th>动作</th>
-								<th>按键</th>
-							</tr>
-						</thead>
-						<tbody id="shortcutTbody"></tbody>
-				</div>
-			</div>
-		</div>
-	</div>
-	<script src="script.js"></script>
+            <!-- 右侧信息区 -->
+            <div class="right-panel">
+                <div class="log-card">
+                    <div class="log-title">📋 指令日志</div>
+                    <div class="log-entries" id="logEntries"></div>
+                </div>
+                <div class="send-card">
+                    <div class="card-title">📨 字符发送控制台</div>
+                    <div class="send-control">
+                        <input type="text" id="sendInput" placeholder="输入任意字符（将逐字符发送）" maxlength="20">
+                        <button id="sendBtn" class="send-btn">发送</button>
+                    </div>
+                </div>
+                <div>
+                    <div class="shortcut-header">
+                        <span class="card-title">⌨️ 自定义快捷键</span>
+                        <button id="resetShortcutsBtn" class="reset-btn">重置默认</button>
+                    </div>
+                    <table class="shortcut-table" id="shortcutTable">
+                        <thead>
+                            <tr><th>动作</th><th>按键</th></tr>
+                        </thead>
+                        <tbody id="shortcutTbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="script.js"></script>
 </body>
-
 </html>
