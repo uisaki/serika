@@ -11,6 +11,7 @@ export const DEFAULT_SHORTCUTS = [
     { action: "机械爪闭合", command: "CLAW_CLOSE", defaultKey: "u", altKeys: ["U"] },
     { action: "加速 (I)", command: "speedUp", defaultKey: "i", altKeys: ["I"] },
     { action: "减速 (K)", command: "speedDown", defaultKey: "k", altKeys: ["K"] },
+    { action: "刹车 (空格)", command: "BRAKE", defaultKey: " ", altKeys: [] },      // 新增刹车命令
     { action: "发送（控制台）", command: "CONSOLE_SEND", defaultKey: "Enter", altKeys: [] },
     { action: "切换焦点（控制台）", command: "CONSOLE_FOCUS", defaultKey: "Tab", altKeys: [] }
 ];

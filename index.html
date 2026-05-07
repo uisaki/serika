@@ -9,7 +9,7 @@
 <body>
     <div class="app">
         <h1>🤖 桌面宠物遥控器</h1>
-        <div class="sub">WASD移动 旋转JL 机械爪UO</div>
+        <div class="sub">WASD移动 旋转JL 机械爪UO 空格刹车</div>
         <button id="connectBtn" class="connect-btn">🔌 连接蓝牙设备</button>
         <div class="status-bar">
             <span>⚡ 未连接</span>
@@ -35,28 +35,6 @@
                     <div class="card-title">🔄 旋转摇杆</div>
                     <canvas id="rotateCanvas" class="rotate-canvas" width="240" height="50"></canvas>
                     <div class="hint">← 逆时针 (J) &nbsp;&nbsp; 顺时针 (L) →</div>
-                </div>
-                <!-- 自定义命令按钮区 -->
-                <div style="margin-top: 1rem;">
-                    <div class="card-title">🎮 游戏控制按钮</div>
-                    <div class="custom-buttons">
-                        <div class="custom-btn-item">
-                            <button class="custom-cmd-btn" id="customBtn1">发送</button>
-                            <input type="text" id="customCmd1" class="custom-cmd-input" maxlength="1" value="N" placeholder="字母">
-                            <span class="custom-hint">(落子)</span>
-                        </div>
-                        <div class="custom-btn-item">
-                            <button class="custom-cmd-btn" id="customBtn2">发送</button>
-                            <input type="text" id="customCmd2" class="custom-cmd-input" maxlength="1" value="M" placeholder="字母">
-                            <span class="custom-hint">(重置)</span>
-                        </div>
-                        <div class="custom-btn-item">
-                            <button class="custom-cmd-btn" id="customBtn3">发送</button>
-                            <input type="text" id="customCmd3" class="custom-cmd-input" maxlength="1" value="Q" placeholder="字母">
-                            <span class="custom-hint">(切换游戏)</span>
-                        </div>
-                    </div>
-                    <div class="hint">点击按钮或按设定的字母键发送命令（游戏模式专用）</div>
                 </div>
             </div>
 

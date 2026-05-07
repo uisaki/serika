@@ -1,7 +1,6 @@
 import { initBluetooth, isBluetoothConnected, sendCommand, sendLine } from './bluetooth.js';
 import { initJoysticks, setMoveTarget } from './joystick.js';
 import { initShortcuts } from './shortcuts.js';
-import { initCustomButtons, getCustomShortcutKeys } from './custom_buttons.js';
 
 // ---------- 全局状态 ----------
 let currentMoveDir = 'F';
@@ -129,17 +128,8 @@ const { rotateJoystick, clawJoystick } = initJoysticks(updateMoveDirection, upda
 window.rotateJoystick = rotateJoystick;
 window.clawJoystick = clawJoystick;
 
-initShortcuts(
-    getCustomShortcutKeys,
-    setMoveTarget,
-    (val) => rotateJoystick.setTarget(val),
-    (val) => clawJoystick.setTarget(val),
-    updateClawCommand,
-    adjustSpeedBy,
-    sendLine
-);
-
-initCustomButtons();
+// 初始化快捷键：传入移动、旋转、机械爪、速度调整、控制台发送等回调
+initShortcuts(setMoveTarget, (val) => rotateJoystick.setTarget(val), (val) => clawJoystick.setTarget(val), updateClawCommand, adjustSpeedBy, sendLine);
 
 // ---------- 速度滑动条事件（消除回弹）----------
 let isSettingValue = false;
