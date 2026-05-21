@@ -6,17 +6,11 @@ import { initShortcuts } from './shortcuts.js';
 let currentMoveDir = 'F';
 let currentRotateDir = 'F';
 let currentClawCmd = 'F';
-let currentSpeedPercent = 50;
 let isConnected = false;
 
 // ---------- DOM 元素 ----------
 const statusSpan = document.querySelector('.status-bar span:first-child');
-const speedSlider = document.getElementById('speedSlider');
-const speedPercentSpan = document.getElementById('speedPercent');
 const logEntriesDiv = document.getElementById('logEntries');
-
-// 滑块步长设为10，避免非整十值
-speedSlider.step = '10';
 
 // ---------- 日志 ----------
 function addLog(msg) {
@@ -44,14 +38,12 @@ function updateControlsEnabled(connected) {
     if (connected) {
         leftPanel.classList.remove('disabled-controls');
         rightPanel.classList.remove('disabled-controls');
-        speedSlider.disabled = false;
         moveCanvas.classList.remove('disabled');
         rotateCanvas.classList.remove('disabled');
         clawCanvas.classList.remove('disabled');
     } else {
         leftPanel.classList.add('disabled-controls');
         rightPanel.classList.add('disabled-controls');
-        speedSlider.disabled = true;
         moveCanvas.classList.add('disabled');
         rotateCanvas.classList.add('disabled');
         clawCanvas.classList.add('disabled');
@@ -87,74 +79,22 @@ function updateClawCommand(cmd) {
     sendCommand(cmd);
 }
 
-// ---------- 速度控制 ----------
-function setSpeedPercentUI(value) {
-    value = Math.round(value / 10) * 10;
-    value = Math.min(100, Math.max(0, value));
-    if (currentSpeedPercent === value) return;
-    currentSpeedPercent = value;
-    speedSlider.value = value;
-    speedPercentSpan.innerText = value + '%';
-}
-
-async function sendSpeedSteps(deltaSteps, isAccel) {
-    const cmd = isAccel ? 'I' : 'K';
-    for (let i = 0; i < Math.abs(deltaSteps); i++) {
-        await sendCommand(cmd);
-    }
-}
-
-function adjustSpeedBy(delta) {
-    let newVal = currentSpeedPercent + delta;
-    newVal = Math.round(newVal / 10) * 10;
-    newVal = Math.min(100, Math.max(0, newVal));
-    if (newVal !== currentSpeedPercent) {
-        setSpeedPercentUI(newVal);
-        return true;
-    }
-    return false;
-}
-
-// ---------- 全局挂载（供其他模块回调）----------
+// ---------- 全局挂载 ----------
 window.isBluetoothConnected = () => isConnected;
 window.addLog = addLog;
-window.setSpeedPercentUI = setSpeedPercentUI;
 window.updateStatus = updateStatus;
 window.updateControlsEnabled = updateControlsEnabled;
 
 // ---------- 初始化各模块 ----------
-initBluetooth(addLog, setSpeedPercentUI, updateStatus, updateControlsEnabled);
+initBluetooth(addLog, updateStatus, updateControlsEnabled);
 const { rotateJoystick, clawJoystick } = initJoysticks(updateMoveDirection, updateRotateDirection, updateClawCommand);
 window.rotateJoystick = rotateJoystick;
 window.clawJoystick = clawJoystick;
 
-// 初始化快捷键：传入移动、旋转、机械爪、速度调整、控制台发送等回调
-initShortcuts(setMoveTarget, (val) => rotateJoystick.setTarget(val), (val) => clawJoystick.setTarget(val), updateClawCommand, adjustSpeedBy, sendLine);
-
-// ---------- 速度滑动条事件（消除回弹）----------
-let isSettingValue = false;
-speedSlider.addEventListener('input', (e) => {
-    if (!isConnected) return;
-    if (isSettingValue) return;
-
-    let raw = parseInt(e.target.value);
-    let rounded = Math.round(raw / 10) * 10;
-    if (rounded !== raw) {
-        isSettingValue = true;
-        e.target.value = rounded;
-        isSettingValue = false;
-        raw = rounded;
-    }
-
-    if (raw === currentSpeedPercent) return;
-
-    const diff = raw - currentSpeedPercent;
-    const steps = Math.abs(diff) / 10;
-    sendSpeedSteps(steps, diff > 0);
-
-    currentSpeedPercent = raw;
-    speedPercentSpan.innerText = raw + '%';
-});
+// 速度快捷键直接发送 I/K，不需要前端调整滑块
+const speedUp = () => { if (isConnected) sendCommand('I'); };
+const speedDown = () => { if (isConnected) sendCommand('K'); };
+initShortcuts(setMoveTarget, (val) => rotateJoystick.setTarget(val), (val) => clawJoystick.setTarget(val), updateClawCommand, speedUp, speedDown, sendLine);
 
 // ---------- 控制台发送 ----------
 const sendInput = document.getElementById('sendInput');

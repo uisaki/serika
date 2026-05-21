@@ -88,7 +88,7 @@ export function resetShortcuts() {
     if (window.addLog) window.addLog('快捷键已重置');
 }
 
-export function initShortcuts(setMoveTargetCallback, rotateJoystickSetTarget, clawJoystickSetTarget, updateClawCommand, adjustSpeedBy, sendLine) {
+export function initShortcuts(setMoveTargetCallback, rotateJoystickSetTarget, clawJoystickSetTarget, updateClawCommand, speedUpCallback, speedDownCallback, sendLine) {
     const stored = localStorage.getItem('robotShortcuts');
     if (stored) {
         try { let arr = JSON.parse(stored); if (Array.isArray(arr) && arr.length) currentShortcuts = arr; } catch (e) {}
@@ -98,13 +98,11 @@ export function initShortcuts(setMoveTargetCallback, rotateJoystickSetTarget, cl
     document.getElementById('resetShortcutsBtn').addEventListener('click', resetShortcuts);
 
     window.addEventListener('keydown', (e) => {
-        // 焦点在字符发送控制台时，只有 Enter 和 Tab 快捷键生效，其他键忽略
         const activeEl = document.activeElement;
         const isConsoleFocused = activeEl && activeEl.id === 'sendInput';
         if (isConsoleFocused && e.key !== 'Enter' && e.key !== 'Tab') {
             return;
         }
-
         if (!window.isBluetoothConnected?.()) return;
         let key = e.key;
         if (key === ' ') key = ' ';
@@ -123,9 +121,9 @@ export function initShortcuts(setMoveTargetCallback, rotateJoystickSetTarget, cl
             else if (cmd === 'R_CCW') rotateJoystickSetTarget?.(-1);
             else if (cmd === 'CLAW_OPEN') clawJoystickSetTarget?.(1);
             else if (cmd === 'CLAW_CLOSE') clawJoystickSetTarget?.(-1);
-            else if (cmd === 'BRAKE') sendCommand(' ');      // 发送空格命令（刹车）
-            else if (cmd === 'speedUp') { if (adjustSpeedBy(10)) sendCommand('I'); }
-            else if (cmd === 'speedDown') { if (adjustSpeedBy(-10)) sendCommand('K'); }
+            else if (cmd === 'BRAKE') sendCommand(' ');
+            else if (cmd === 'speedUp') speedUpCallback();      // 直接调用回调，内部发送 I
+            else if (cmd === 'speedDown') speedDownCallback();  // 直接发送 K
             else if (cmd === 'CONSOLE_SEND') {
                 const sendInput = document.getElementById('sendInput');
                 if (sendInput && sendInput.value.trim() !== '') {
@@ -144,13 +142,11 @@ export function initShortcuts(setMoveTargetCallback, rotateJoystickSetTarget, cl
     });
 
     window.addEventListener('keyup', (e) => {
-        // 同样焦点过滤
         const activeEl = document.activeElement;
         const isConsoleFocused = activeEl && activeEl.id === 'sendInput';
         if (isConsoleFocused && e.key !== 'Enter' && e.key !== 'Tab') {
             return;
         }
-
         if (!window.isBluetoothConnected?.()) return;
         let key = e.key;
         if (key === ' ') key = ' ';

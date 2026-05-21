@@ -2,7 +2,6 @@ let device = null, characteristic = null;
 let isConnected = false;
 let receiveBuffer = '';
 let addLogCallback = null;
-let setSpeedPercentUICallback = null;
 let updateStatusCallback = null;
 let updateControlsEnabledCallback = null;
 
@@ -40,13 +39,8 @@ function handleNotifications(event) {
 
 function parseReceivedLine(line) {
     if (addLogCallback) addLogCallback(`📨 ${line}`);
-    if (line.startsWith('@speed=')) {
-        const speed = parseInt(line.substring(7));
-        if (!isNaN(speed) && setSpeedPercentUICallback) {
-            const percent = Math.round(speed / 10);
-            setSpeedPercentUICallback(percent);
-        }
-    } else if (line.startsWith('@time=')) {
+    // 只解析时间和日期，速度已忽略
+    if (line.startsWith('@time=')) {
         const time = line.substring(6);
         if (addLogCallback) addLogCallback(`⏰ 时间: ${time}`);
     } else if (line.startsWith('@date=')) {
@@ -59,12 +53,11 @@ async function queryInfo() {
     if (!characteristic || !isConnected) return;
     await sendLine('q -t');
     await sendLine('q -d');
-    await sendLine('q -s');
+    // 不再查询速度 q -s
 }
 
-export function initBluetooth(addLog, setSpeedPercentUI, updateStatus, updateControlsEnabled) {
+export function initBluetooth(addLog, updateStatus, updateControlsEnabled) {
     addLogCallback = addLog;
-    setSpeedPercentUICallback = setSpeedPercentUI;
     updateStatusCallback = updateStatus;
     updateControlsEnabledCallback = updateControlsEnabled;
 

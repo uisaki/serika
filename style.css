@@ -134,19 +134,6 @@ h1 {
     margin-top: 6px;
 }
 
-.speed-control {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 0.5rem;
-    margin: 1rem 0 0.5rem;
-    font-size: 0.8rem;
-}
-
-.speed-control input {
-    flex: 1;
-    height: 4px;
-}
 
 .log-card {
     background: #ffffffc9;
